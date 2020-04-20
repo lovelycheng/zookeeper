@@ -1072,8 +1072,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         if (!getView().containsKey(myid)) {
             throw new RuntimeException("My id " + myid + " not in the peer list");
         }
-        loadDataBase();
-        startServerCnxnFactory();
+        loadDataBase(); // 加载磁盘数据
+        startServerCnxnFactory(); // netty 通信的服务
         try {
             adminServer.start();
         } catch (AdminServerException e) {
@@ -1090,15 +1090,19 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             zkDb.loadDataBase();
 
             // load the epochs
-            long lastProcessedZxid = zkDb.getDataTree().lastProcessedZxid;
+            long lastProcessedZxid = zkDb.getDataTree().lastProcessedZxid; // 这个是启动之后从磁盘读取到的数据,
+            // 此时节点所有commited的最新的事务。
+
+            //最新的 epoch
             long epochOfZxid = ZxidUtils.getEpochFromZxid(lastProcessedZxid);
+
             try {
-                currentEpoch = readLongFromFile(CURRENT_EPOCH_FILENAME);
+                currentEpoch = readLongFromFile(CURRENT_EPOCH_FILENAME);// 这两个值为什么不一样的？
             } catch (FileNotFoundException e) {
                 // pick a reasonable epoch number
                 // this should only happen once when moving to a
                 // new code version
-                currentEpoch = epochOfZxid;
+                currentEpoch = epochOfZxid;// epoch 更新了
                 LOG.info(
                     "{} not found! Creating with a reasonable default of {}. "
                         + "This should only happen when you are upgrading your installation",
@@ -1383,21 +1387,19 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                         // Thread is used here because otherwise it would require
                         // changes in each of election strategy classes which is
                         // unnecessary code coupling.
-                        Thread roZkMgr = new Thread() {
-                            public void run() {
-                                try {
-                                    // lower-bound grace period to 2 secs
-                                    sleep(Math.max(2000, tickTime));
-                                    if (ServerState.LOOKING.equals(getPeerState())) {
-                                        roZk.startup();
-                                    }
-                                } catch (InterruptedException e) {
-                                    LOG.info("Interrupted while attempting to start ReadOnlyZooKeeperServer, not started");
-                                } catch (Exception e) {
-                                    LOG.error("FAILED to start ReadOnlyZooKeeperServer", e);
+                        Thread roZkMgr = new Thread(() -> {
+                            try {
+                                // lower-bound grace period to 2 secs
+                                sleep(Math.max(2000, tickTime));
+                                if (ServerState.LOOKING.equals(getPeerState())) {
+                                    roZk.startup();
                                 }
+                            } catch (InterruptedException e) {
+                                LOG.info("Interrupted while attempting to start ReadOnlyZooKeeperServer, not started");
+                            } catch (Exception e) {
+                                LOG.error("FAILED to start ReadOnlyZooKeeperServer", e);
                             }
-                        };
+                        });
                         try {
                             roZkMgr.start();
                             reconfigFlagClear();
@@ -2089,7 +2091,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         return qcmRef.get();
     }
     private long readLongFromFile(String name) throws IOException {
-        File file = new File(logFactory.getSnapDir(), name);
+        File file = new File(logFactory.getSnapDir(), name);//从快照里面读的
         BufferedReader br = new BufferedReader(new FileReader(file));
         String line = "";
         try {
@@ -2102,8 +2104,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         }
     }
 
-    private long acceptedEpoch = -1;
-    private long currentEpoch = -1;
+    private long acceptedEpoch = -1; // newEpoch
+    private long currentEpoch = -1; // newLeader stable leader选举完成之后的epoch
 
     public static final String CURRENT_EPOCH_FILENAME = "currentEpoch";
 

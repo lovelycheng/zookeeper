@@ -112,7 +112,7 @@ public class FastLeaderElection implements Election {
          * Format version, introduced in 3.4.6
          */
 
-        public static final int CURRENTVERSION = 0x2;
+        public static final int CURRENTVERSION = 0x2; //10
         int version;
 
         /*
@@ -263,7 +263,7 @@ public class FastLeaderElection implements Election {
                         long rleader = response.buffer.getLong();
                         long rzxid = response.buffer.getLong();
                         long relectionEpoch = response.buffer.getLong();
-                        long rpeerepoch;
+                        long rpeerepoch;// 发过来的服务器支持的服务器的epoch
 
                         int version = 0x0;
                         QuorumVerifier rqv = null;
@@ -334,6 +334,17 @@ public class FastLeaderElection implements Election {
                                      response.sid, capacity, e);
                             continue;
                         }
+
+                        /**
+                         * this step we get data：
+                         * rleader
+                         * rstate
+                         * rzxid
+                         * relectionEpoch
+                         * rpeerepoch
+                         * version
+                         * */
+
                         /*
                          * If it is from a non-voting server (such as an observer or
                          * a non-voting follower), respond right away.
@@ -357,7 +368,7 @@ public class FastLeaderElection implements Election {
                             LOG.debug("Receive new notification message. My id = {}", self.getId());
 
                             // State of peer that sent this message
-                            QuorumPeer.ServerState ackstate = QuorumPeer.ServerState.LOOKING;
+                            QuorumPeer.ServerState ackstate;
                             switch (rstate) {
                             case 0:
                                 ackstate = QuorumPeer.ServerState.LOOKING;
@@ -573,7 +584,7 @@ public class FastLeaderElection implements Election {
     public long getLogicalClock() {
         return logicalclock.get();
     }
-
+    //test use
     static ByteBuffer buildMsg(int state, long leader, long zxid, long electionEpoch, long epoch) {
         byte[] requestBytes = new byte[40];
         ByteBuffer requestBuffer = ByteBuffer.wrap(requestBytes);
@@ -923,7 +934,7 @@ public class FastLeaderElection implements Election {
              * if v.electionEpoch == logicalclock. The current participant uses recvset to deduce on whether a majority
              * of participants has voted for it.
              */
-            Map<Long, Vote> recvset = new HashMap<Long, Vote>();
+            Map<Long, Vote> recvset = new HashMap<Long, Vote>();// 收到的选票 <myid,>
 
             /*
              * The votes from previous leader elections, as well as the votes from the current leader election are
@@ -931,16 +942,21 @@ public class FastLeaderElection implements Election {
              * Only FOLLOWING or LEADING notifications are stored in outofelection. The current participant could use
              * outofelection to learn which participant is the leader if it arrives late (i.e., higher logicalclock than
              * the electionEpoch of the received notifications) in a leader election.
+             *
+             * 前一轮和这一轮的leader选举收到的选票。只收来自Following和leading的进程的通知。
+             *
              */
             Map<Long, Vote> outofelection = new HashMap<Long, Vote>();
 
             int notTimeout = minNotificationInterval;
 
             synchronized (this) {
-                logicalclock.incrementAndGet();
-                updateProposal(getInitId(), getInitLastLoggedZxid(), getPeerEpoch());
-            }
+                logicalclock.incrementAndGet();// 自己的当前轮数++
 
+                // leader 的实际意义就是服务器的myid。 datatree.lastZxid
+                updateProposal(getInitId(), getInitLastLoggedZxid(), getPeerEpoch()); //将自己的选票投给自己
+            }
+            //我自己的票不入receiveVotes。
             LOG.info(
                 "New election. My id = {}, proposed zxid=0x{}",
                 self.getId(),
