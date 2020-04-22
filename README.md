@@ -1,3 +1,17 @@
+# 本地的伪分布式启动
+启动
+>./startall.sh
+
+启动单个服务
+>./startall.sh 1/2/3
+
+关闭所有
+>./stopall.sh
+
+关闭单个
+>./stopall.sh 1/2/3
+
+
 # Apache ZooKeeper [![Build Status](https://travis-ci.org/apache/zookeeper.svg?branch=master)](https://travis-ci.org/apache/zookeeper) [![Maven Central](https://img.shields.io/maven-central/v/org.apache.zookeeper/zookeeper)](https://zookeeper.apache.org/releases.html) [![License](https://img.shields.io/github/license/apache/zookeeper)](https://github.com/apache/zookeeper/blob/master/LICENSE.txt)
 ![alt text](https://zookeeper.apache.org/images/zookeeper_small.gif "ZooKeeper")
 
