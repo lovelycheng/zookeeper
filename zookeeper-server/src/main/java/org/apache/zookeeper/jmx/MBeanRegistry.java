@@ -96,7 +96,8 @@ public class MBeanRegistry {
             path = mapBean2Path.get(parent);
             assert path != null;
         }
-        path = makeFullPath(path, parent);
+        path = makeFullPath(path, parent);//"ReplicatedServer_id1/"
+        //
         if (bean.isHidden()) {
             return;
         }

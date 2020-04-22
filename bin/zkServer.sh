@@ -143,8 +143,16 @@ if [ ! -w "$ZOO_LOG_DIR" ] ; then
 mkdir -p "$ZOO_LOG_DIR"
 fi
 
-ZOO_LOG_FILE=zookeeper-$USER-server-$HOSTNAME.log
-_ZOO_DAEMON_OUT="$ZOO_LOG_DIR/zookeeper-$USER-server-$HOSTNAME.out"
+
+_ZOO_DAEMON_OUT="$ZOO_LOG_DIR/zookeeper-$USER-server.out"
+
+_P="$2"
+echo ${_P}
+_file=${_P##*/}
+echo ${_file}
+_file=${_file%.*}
+echo ${_file}
+_ZOO_DAEMON_OUT="$ZOO_LOG_DIR/zookeeper-server-${_file}.out"
 
 case $1 in
 start)

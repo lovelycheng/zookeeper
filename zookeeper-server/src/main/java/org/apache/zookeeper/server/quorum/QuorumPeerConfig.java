@@ -94,7 +94,7 @@ public class QuorumPeerConfig {
     protected int initLimit;
     protected int syncLimit;
     protected int connectToLearnerMasterLimit;
-    protected int electionAlg = 3;
+    protected int electionAlg = 3;//
     protected int electionPort = 2182;
     protected boolean quorumListenOnAllIPs = false;
 
@@ -114,7 +114,7 @@ public class QuorumPeerConfig {
      */
     protected boolean quorumServerRequireSasl = false;
     protected boolean quorumLearnerRequireSasl = false;
-    protected boolean quorumEnableSasl = false;
+    protected boolean quorumEnableSasl = false;// 是否启用 简单认证与安全层
     protected String quorumServicePrincipal = QuorumAuth.QUORUM_KERBEROS_SERVICE_PRINCIPAL_DEFAULT_VALUE;
     protected String quorumLearnerLoginContext = QuorumAuth.QUORUM_LEARNER_SASL_LOGIN_CONTEXT_DFAULT_VALUE;
     protected String quorumServerLoginContext = QuorumAuth.QUORUM_SERVER_SASL_LOGIN_CONTEXT_DFAULT_VALUE;
@@ -197,7 +197,7 @@ public class QuorumPeerConfig {
             throw new ConfigException("Error processing " + path, e);
         }
 
-        if (dynamicConfigFileStr != null) {
+        if (dynamicConfigFileStr != null) { //默认null
             try {
                 Properties dynamicCfg = new Properties();
                 FileInputStream inConfig = new FileInputStream(dynamicConfigFileStr);
@@ -699,7 +699,7 @@ public class QuorumPeerConfig {
                 throw new ConfigException("Unrecognised parameter: " + key);
             }
         }
-
+        //默认情况下  isHierarchical = false
         QuorumVerifier qv = createQuorumVerifier(dynamicConfigProp, isHierarchical);
 
         int numParticipators = qv.getVotingMembers().size();

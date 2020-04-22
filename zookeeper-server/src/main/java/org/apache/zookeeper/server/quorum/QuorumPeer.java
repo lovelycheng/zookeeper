@@ -476,10 +476,10 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     }
 
     public enum ServerState {
-        LOOKING,
-        FOLLOWING,
-        LEADING,
-        OBSERVING
+        LOOKING,// ordinal 0
+        FOLLOWING, // 1
+        LEADING, // 2
+        OBSERVING // 3
     }
 
     /**
@@ -1075,12 +1075,12 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         loadDataBase(); // 加载磁盘数据
         startServerCnxnFactory(); // netty 通信的服务
         try {
-            adminServer.start();
+            adminServer.start(); //执行外部的cmd的服务
         } catch (AdminServerException e) {
             LOG.warn("Problem starting AdminServer", e);
             System.out.println(e);
         }
-        startLeaderElection();
+        startLeaderElection(); // 开始选举
         startJvmPauseMonitor();
         super.start();
     }
@@ -1339,11 +1339,11 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         LOG.debug("Starting quorum peer");
         try {
             jmxQuorumBean = new QuorumBean(this);
-            MBeanRegistry.getInstance().register(jmxQuorumBean, null);
+            MBeanRegistry.getInstance().register(jmxQuorumBean, null); //生成路径
             for (QuorumServer s : getView().values()) {
                 ZKMBeanInfo p;
-                if (getId() == s.id) {
-                    p = jmxLocalPeerBean = new LocalPeerBean(this);
+                if (getId() == s.id) { // 如果是自己
+                    p = jmxLocalPeerBean = new LocalPeerBean(this);//name = replica.1
                     try {
                         MBeanRegistry.getInstance().register(p, jmxQuorumBean);
                     } catch (Exception e) {
@@ -1365,6 +1365,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             jmxQuorumBean = null;
         }
 
+        //上述步骤是 向JVM注册了bean-beanName 还有保存了每个bean的一个树形的路径
+
         try {
             /*
              * Main loop
@@ -1374,7 +1376,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                 case LOOKING:
                     LOG.info("LOOKING");
                     ServerMetrics.getMetrics().LOOKING_COUNT.add(1);
-
+                    //readonlymode.enabled 这个东西的意思是如果当前服务器脱离了集群 就变成只读，不能写不能看见新的写入 默认版false
                     if (Boolean.getBoolean("readonlymode.enabled")) {
                         LOG.info("Attempting to start ReadOnlyZooKeeperServer");
 
@@ -1405,7 +1407,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                             reconfigFlagClear();
                             if (shuttingDownLE) {
                                 shuttingDownLE = false;
-                                startLeaderElection();
+                                startLeaderElection();//又来一次
                             }
                             setCurrentVote(makeLEStrategy().lookForLeader());
                         } catch (Exception e) {
@@ -1467,7 +1469,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                     LOG.info("LEADING");
                     try {
                         setLeader(makeLeader(logFactory));
-                        leader.lead();
+                        leader.lead(); //去discovery了
                         setLeader(null);
                     } catch (Exception e) {
                         LOG.warn("Unexpected exception", e);
@@ -1556,7 +1558,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
 
     /**
      * A 'view' is a node's current opinion of the membership of the entire
-     * ensemble.
+     * ensemble.// 整个集群中的成员
      */
     public Map<Long, QuorumPeer.QuorumServer> getView() {
         return Collections.unmodifiableMap(getQuorumVerifier().getAllMembers());
