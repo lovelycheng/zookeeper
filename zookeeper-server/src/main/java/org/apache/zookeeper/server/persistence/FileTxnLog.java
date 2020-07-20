@@ -674,7 +674,7 @@ public class FileTxnLog implements TxnLog, Closeable {
             List<File> files = Util.sortDataDir(
                 FileTxnLog.getLogFiles(logDir.listFiles(), 0),
                 LOG_FILE_PREFIX,
-                false);
+                false);// 倒序排队
             for (File f : files) {
                 if (Util.getZxidFromName(f.getName(), LOG_FILE_PREFIX) >= zxid) {
                     storedFiles.add(f);
@@ -707,7 +707,7 @@ public class FileTxnLog implements TxnLog, Closeable {
          */
         private boolean goToNextLog() throws IOException {
             if (storedFiles.size() > 0) {
-                this.logFile = storedFiles.remove(storedFiles.size() - 1);
+                this.logFile = storedFiles.remove(storedFiles.size() - 1);// 拿最后一个file
                 ia = createInputArchive(this.logFile);
                 return true;
             }

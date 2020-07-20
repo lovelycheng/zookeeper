@@ -458,17 +458,16 @@ public class LearnerHandler extends ZooKeeperThread {
             learnerMaster.addLearnerHandler(this);
             tickOfNextAckDeadline = learnerMaster.getTickOfInitialAckDeadline();
 
-            ia = BinaryInputArchive.getArchive(bufferedInput);
+            ia = BinaryInputArchive.getArchive(bufferedInput);//通过socket的输入
             bufferedOutput = new BufferedOutputStream(sock.getOutputStream());
-            oa = BinaryOutputArchive.getArchive(bufferedOutput);
+            oa = BinaryOutputArchive.getArchive(bufferedOutput);//通过socket的输出
 
             QuorumPacket qp = new QuorumPacket();
-            ia.readRecord(qp, "packet");
+            ia.readRecord(qp, "packet");//读取follower的输入
 
             messageTracker.trackReceived(qp.getType());
-            if (qp.getType() != Leader.FOLLOWERINFO && qp.getType() != Leader.OBSERVERINFO) {
+            if (qp.getType() != Leader.FOLLOWERINFO && qp.getType() != Leader.OBSERVERINFO) { //检查是不是FOLLOWERINFO
                 LOG.error("First packet {} is not FOLLOWERINFO or OBSERVERINFO!", qp.toString());
-
                 return;
             }
 
@@ -491,7 +490,7 @@ public class LearnerHandler extends ZooKeeperThread {
                     }
                 }
             } else {
-                this.sid = learnerMaster.getAndDecrementFollowerCounter();
+                this.sid = learnerMaster.getAndDecrementFollowerCounter();//实际的leaner数，-1？
             }
 
             String followerInfo = learnerMaster.getPeerInfo(this.sid);
@@ -508,31 +507,32 @@ public class LearnerHandler extends ZooKeeperThread {
                 learnerType = LearnerType.OBSERVER;
             }
 
-            learnerMaster.registerLearnerHandlerBean(this, sock);
+            learnerMaster.registerLearnerHandlerBean(this, sock);//jmx
 
-            long lastAcceptedEpoch = ZxidUtils.getEpochFromZxid(qp.getZxid());
+            long lastAcceptedEpoch = ZxidUtils.getEpochFromZxid(qp.getZxid());//从follower传过来的epoch
 
             long peerLastZxid;
             StateSummary ss = null;
             long zxid = qp.getZxid();
-            long newEpoch = learnerMaster.getEpochToPropose(this.getSid(), lastAcceptedEpoch);
+            long newEpoch = learnerMaster.getEpochToPropose(this.getSid(), lastAcceptedEpoch);//获取所有follow
+            // 中最大的acceptedEpoch + 1
             long newLeaderZxid = ZxidUtils.makeZxid(newEpoch, 0);
 
-            if (this.getVersion() < 0x10000) {
+            if (this.getVersion() < 0x10000) {//maybe
                 // we are going to have to extrapolate the epoch information
                 long epoch = ZxidUtils.getEpochFromZxid(zxid);
                 ss = new StateSummary(epoch, zxid);
                 // fake the message
-                learnerMaster.waitForEpochAck(this.getSid(), ss);
+                learnerMaster.waitForEpochAck(this.getSid(), ss);//
             } else {
                 byte[] ver = new byte[4];
                 ByteBuffer.wrap(ver).putInt(0x10000);
                 QuorumPacket newEpochPacket = new QuorumPacket(Leader.LEADERINFO, newLeaderZxid, ver, null);
-                oa.writeRecord(newEpochPacket, "packet");
+                oa.writeRecord(newEpochPacket, "packet"); // 发送 LEADER-INFO
                 messageTracker.trackSent(Leader.LEADERINFO);
                 bufferedOutput.flush();
-                QuorumPacket ackEpochPacket = new QuorumPacket();
-                ia.readRecord(ackEpochPacket, "packet");
+                QuorumPacket ackEpochPacket = new QuorumPacket();//
+                ia.readRecord(ackEpochPacket, "packet");// 读数据
                 messageTracker.trackReceived(ackEpochPacket.getType());
                 if (ackEpochPacket.getType() != Leader.ACKEPOCH) {
                     LOG.error("{} is not ACKEPOCH", ackEpochPacket.toString());
@@ -542,7 +542,7 @@ public class LearnerHandler extends ZooKeeperThread {
                 ss = new StateSummary(bbepoch.getInt(), ackEpochPacket.getZxid());
                 learnerMaster.waitForEpochAck(this.getSid(), ss);
             }
-            peerLastZxid = ss.getLastZxid();
+            peerLastZxid = ss.getLastZxid();// 最后的ZXID
 
             // Take any necessary action if we need to send TRUNC or DIFF
             // startForwarding() will be called in all cases
@@ -579,6 +579,7 @@ public class LearnerHandler extends ZooKeeperThread {
                     ServerMetrics.getMetrics().SNAP_COUNT.add(1);
                 }
             } else {
+                //
                 syncThrottler = learnerMaster.getLearnerDiffSyncThrottler();
                 syncThrottler.beginSync(exemptFromThrottle);
                 ServerMetrics.getMetrics().DIFF_COUNT.add(1);
@@ -614,7 +615,7 @@ public class LearnerHandler extends ZooKeeperThread {
                 return;
             }
 
-            LOG.debug("Received NEWLEADER-ACK message from {}", sid);
+            LOG.info("Received NEWLEADER-ACK message from {}", sid);
 
             learnerMaster.waitForNewLeaderAck(getSid(), qp.getZxid());
 
@@ -767,8 +768,8 @@ public class LearnerHandler extends ZooKeeperThread {
      * Determine if we need to sync with follower using DIFF/TRUNC/SNAP
      * and setup follower to receive packets from commit processor
      *
-     * @param peerLastZxid
-     * @param learnerMaster
+     * @param peerLastZxid 来自follower的zxid
+     * @param learnerMaster leader
      * @return true if snapshot transfer is needed.
      */
     boolean syncFollower(long peerLastZxid, LearnerMaster learnerMaster) {
@@ -783,12 +784,13 @@ public class LearnerHandler extends ZooKeeperThread {
          * zxid in our history. In this case, we will ignore TRUNC logic and
          * always send DIFF if we have old enough history
          */
-        boolean isPeerNewEpochZxid = (peerLastZxid & 0xffffffffL) == 0;
+        boolean isPeerNewEpochZxid = (peerLastZxid & 0xffffffffL) == 0; //低32位是不是0
         // Keep track of the latest zxid which already queued
         long currentZxid = peerLastZxid;
         boolean needSnap = true;
         ZKDatabase db = learnerMaster.getZKDatabase();
         boolean txnLogSyncEnabled = db.isTxnLogSyncEnabled();
+        //logLock 日志的读写锁
         ReentrantReadWriteLock lock = db.getLogLock();
         ReadLock rl = lock.readLock();
         try {
@@ -813,14 +815,14 @@ public class LearnerHandler extends ZooKeeperThread {
                  * will reduce the case that we need to handle
                  *
                  * Here is how each case handle by the if block below
-                 * 1. lastProcessZxid == peerZxid -> Handle by (2)
-                 * 2. lastProcessZxid < peerZxid -> Handle by (3)
-                 * 3. lastProcessZxid > peerZxid -> Handle by (5)
+                 * 1. lastProcessZxid == peerZxid -> Handle by (2)  SEND EMPTY DIFF
+                 * 2. lastProcessZxid < peerZxid -> Handle by (3)  TRUNC
+                 * 3. lastProcessZxid > peerZxid -> Handle by (5)  DIFF + COMMITTED
                  */
                 minCommittedLog = lastProcessedZxid;
                 maxCommittedLog = lastProcessedZxid;
             }
-
+            LOG.info("leader's minCommittedLog={},maxCommittedLog={}",minCommittedLog,maxCommittedLog);
             /*
              * Here are the cases that we want to handle
              *
@@ -843,10 +845,10 @@ public class LearnerHandler extends ZooKeeperThread {
             } else if (lastProcessedZxid == peerLastZxid) {
                 // Follower is already sync with us, send empty diff
                 LOG.info(
-                    "Sending DIFF zxid=0x{} for peer sid: {}",
+                    "Sending EMPTY DIFF zxid=0x{} for peer sid: {}",
                     Long.toHexString(peerLastZxid),
                     getSid());
-                queueOpPacket(Leader.DIFF, peerLastZxid);
+                queueOpPacket(Leader.DIFF, peerLastZxid);//放入queue
                 needOpPacket = false;
                 needSnap = false;
             } else if (peerLastZxid > maxCommittedLog && !isPeerNewEpochZxid) {
@@ -869,7 +871,7 @@ public class LearnerHandler extends ZooKeeperThread {
                 // Use txnlog and committedLog to sync
 
                 // Calculate sizeLimit that we allow to retrieve txnlog from disk
-                long sizeLimit = db.calculateTxnLogSizeLimit();
+                long sizeLimit = db.calculateTxnLogSizeLimit();// snap.<zxid> 倒序 的length *  0.33
                 // This method can return empty iterator if the requested zxid
                 // is older than on-disk txnlog
                 Iterator<Proposal> txnLogItr = db.getProposalsFromTxnLog(peerLastZxid, sizeLimit);
@@ -885,7 +887,7 @@ public class LearnerHandler extends ZooKeeperThread {
                         currentZxid = peerLastZxid;
                         // Clear out currently queued requests and revert
                         // to sending a snapshot.
-                        queuedPackets.clear();
+                        queuedPackets.clear();// 本来要发diff的被干掉了
                         needOpPacket = true;
                     } else {
                         LOG.debug("Queueing committedLog 0x{}", Long.toHexString(currentZxid));
@@ -912,11 +914,13 @@ public class LearnerHandler extends ZooKeeperThread {
                     txnLogSyncEnabled);
             }
             if (needSnap) {
+                LOG.info("need snap for follower sid={},lastZxid={},leader's minCommittedLog={},maxCommittedLog={}",
+                        getSid(),peerLastZxid,minCommittedLog,maxCommittedLog);
                 currentZxid = db.getDataTreeLastProcessedZxid();
             }
 
-            LOG.debug("Start forwarding 0x{} for peer sid: {}", Long.toHexString(currentZxid), getSid());
-            leaderLastZxid = learnerMaster.startForwarding(this, currentZxid);
+            LOG.info("Start forwarding 0x{} for peer sid: {}", Long.toHexString(currentZxid), getSid());
+            leaderLastZxid = learnerMaster.startForwarding(this, currentZxid);//同步在此期间没有完成的request事务
         } finally {
             rl.unlock();
         }
@@ -936,29 +940,29 @@ public class LearnerHandler extends ZooKeeperThread {
      * is going to be queued are (peerLaxtZxid, maxZxid]
      *
      * @param itr  iterator point to the proposals
-     * @param peerLastZxid  last zxid seen by the follower
+     * @param followerLastZxid  last zxid seen by the follower
      * @param maxZxid  max zxid of the proposal to queue, null if no limit
      * @param lastCommittedZxid when sending diff, we need to send lastCommittedZxid
      *        on the leader to follow Zab 1.0 protocol.
      * @return last zxid of the queued proposal
      */
-    protected long queueCommittedProposals(Iterator<Proposal> itr, long peerLastZxid, Long maxZxid, Long lastCommittedZxid) {
-        boolean isPeerNewEpochZxid = (peerLastZxid & 0xffffffffL) == 0;
-        long queuedZxid = peerLastZxid;
+    protected long queueCommittedProposals(Iterator<Proposal> itr, long followerLastZxid, Long maxZxid, Long lastCommittedZxid) {
+        boolean isPeerNewEpochZxid = (followerLastZxid & 0xffffffffL) == 0;
+        long queuedZxid = followerLastZxid;
         // as we look through proposals, this variable keeps track of previous
         // proposal Id.
         long prevProposalZxid = -1;
         while (itr.hasNext()) {
             Proposal propose = itr.next();
 
-            long packetZxid = propose.packet.getZxid();
+            long packetZxid = propose.packet.getZxid();// 当前commited-log的zxid
             // abort if we hit the limit
             if ((maxZxid != null) && (packetZxid > maxZxid)) {
                 break;
             }
 
             // skip the proposals the peer already has
-            if (packetZxid < peerLastZxid) {
+            if (packetZxid < followerLastZxid) { //跳过所有小于follower的zxid
                 prevProposalZxid = packetZxid;
                 continue;
             }
@@ -968,7 +972,7 @@ public class LearnerHandler extends ZooKeeperThread {
             if (needOpPacket) {
 
                 // Send diff when we see the follower's zxid in our history
-                if (packetZxid == peerLastZxid) {
+                if (packetZxid == followerLastZxid) {
                     LOG.info(
                         "Sending DIFF zxid=0x{}  for peer sid: {}",
                         Long.toHexString(lastCommittedZxid),
@@ -986,10 +990,10 @@ public class LearnerHandler extends ZooKeeperThread {
                         getSid());
                     queueOpPacket(Leader.DIFF, lastCommittedZxid);
                     needOpPacket = false;
-                } else if (packetZxid > peerLastZxid) {
+                } else if (packetZxid > followerLastZxid) {
                     // Peer have some proposals that the learnerMaster hasn't seen yet
                     // it may used to be a leader
-                    if (ZxidUtils.getEpochFromZxid(packetZxid) != ZxidUtils.getEpochFromZxid(peerLastZxid)) {
+                    if (ZxidUtils.getEpochFromZxid(packetZxid) != ZxidUtils.getEpochFromZxid(followerLastZxid)) {
                         // We cannot send TRUNC that cross epoch boundary.
                         // The learner will crash if it is asked to do so.
                         // We will send snapshot this those cases.
@@ -1093,6 +1097,7 @@ public class LearnerHandler extends ZooKeeperThread {
         queuedPackets.add(p);
         // Add a MarkerQuorumPacket at regular intervals.
         if (shouldSendMarkerPacketForLogging() && packetCounter.getAndIncrement() % markerPacketInterval == 0) {
+            //每1000个包来一个？
             queuedPackets.add(new MarkerQuorumPacket(System.nanoTime()));
         }
         queuedPacketsSize.addAndGet(packetSize(p));

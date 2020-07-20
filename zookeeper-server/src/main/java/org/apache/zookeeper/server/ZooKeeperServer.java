@@ -655,15 +655,16 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
             loadData();
         }
     }
-
+    //startup from leader maybe
     public synchronized void startup() {
         if (sessionTracker == null) {
             createSessionTracker();
         }
         startSessionTracker();
         setupRequestProcessors();
+        //
 
-        startRequestThrottler();
+        startRequestThrottler();// 启动Throttler线程
 
         registerJMX();
 
@@ -1317,11 +1318,17 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "the value won't change after startup")
     public void processConnectRequest(ServerCnxn cnxn, ByteBuffer incomingBuffer)
         throws IOException, ClientCnxnLimitException {
+        byte[] bytes = incomingBuffer.array();
+
+        for(byte b:bytes){
+            LOG.info("incoming buffer:{}",b);
+        }
+
 
         BinaryInputArchive bia = BinaryInputArchive.getArchive(new ByteBufferInputStream(incomingBuffer));
         ConnectRequest connReq = new ConnectRequest();
-        connReq.deserialize(bia, "connect");
-        LOG.debug(
+        connReq.deserialize(bia, "connect");// 反序列化出整个connect Request
+        LOG.info(
             "Session establishment request from client {} client's lastZxid is 0x{}",
             cnxn.getRemoteSocketAddress(),
             Long.toHexString(connReq.getLastZxidSeen()));
@@ -1330,7 +1337,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         int tokensNeeded = 1;
         if (connThrottle.isConnectionWeightEnabled()) {
             if (sessionId == 0) {
-                if (localSessionEnabled) {
+                if (localSessionEnabled) { // 默认false
                     tokensNeeded = connThrottle.getRequiredTokensForLocal();
                 } else {
                     tokensNeeded = connThrottle.getRequiredTokensForGlobal();
@@ -1349,7 +1356,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
 
         boolean readOnly = false;
         try {
-            readOnly = bia.readBool("readOnly");
+            readOnly = bia.readBool("readOnly");//客户端是否只读
             cnxn.isOldClient = false;
         } catch (IOException e) {
             // this is ok -- just a packet from an old client which
@@ -1363,7 +1370,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
             LOG.info(msg);
             throw new CloseRequestException(msg, ServerCnxn.DisconnectReason.CLIENT_ZXID_AHEAD);
         }
-        if (connReq.getLastZxidSeen() > zkDb.dataTree.lastProcessedZxid) {
+        if (connReq.getLastZxidSeen() > zkDb.dataTree.lastProcessedZxid) {//
             String msg = "Refusing session request for client "
                          + cnxn.getRemoteSocketAddress()
                          + " as it has seen zxid 0x"
@@ -1598,7 +1605,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         } else if (h.getType() == OpCode.sasl) {
             processSasl(incomingBuffer, cnxn, h);
         } else {
-            if (shouldRequireClientSaslAuth() && !hasCnxSASLAuthenticated(cnxn)) {
+            if (shouldRequireClientSaslAuth() && !hasCnxSASLAuthenticated(cnxn)) {//没有认证过
                 ReplyHeader replyHeader = new ReplyHeader(h.getXid(), 0, Code.SESSIONCLOSEDREQUIRESASLAUTH.intValue());
                 cnxn.sendResponse(replyHeader, null, "response");
                 cnxn.sendCloseSession();

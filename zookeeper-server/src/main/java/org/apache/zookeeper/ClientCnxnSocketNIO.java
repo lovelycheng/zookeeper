@@ -104,6 +104,7 @@ public class ClientCnxnSocketNIO extends ClientCnxnSocket {
             Packet p = findSendablePacket(outgoingQueue, sendThread.tunnelAuthInProgress());
 
             if (p != null) {
+
                 updateLastSend();
                 // If we already started writing p, p.bb will already exist
                 if (p.bb == null) {
@@ -114,6 +115,7 @@ public class ClientCnxnSocketNIO extends ClientCnxnSocket {
                     }
                     p.createBB();
                 }
+                LOG.info("sending packet to server,packet:{}",p.toString());
                 sock.write(p.bb);
                 if (!p.bb.hasRemaining()) {
                     sentCount.getAndIncrement();
@@ -122,6 +124,7 @@ public class ClientCnxnSocketNIO extends ClientCnxnSocket {
                         && p.requestHeader.getType() != OpCode.ping
                         && p.requestHeader.getType() != OpCode.auth) {
                         synchronized (pendingQueue) {
+                            LOG.info(" ====== add packet to pendingQueue ====== ");
                             pendingQueue.add(p);
                         }
                     }

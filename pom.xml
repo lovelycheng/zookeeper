@@ -922,7 +922,7 @@
                  <pushChanges>false</pushChanges>
                  <includes>zookeeper-client/zookeeper-client-c/CMakeLists.txt,zookeeper-client/zookeeper-client-c/configure.ac,zookeeper-client/zookeeper-client-c/include/zookeeper_version.h</includes>
                </configuration>
-            </execution>
+             </execution>
             <execution>
                <id>commit-cclient-files-during-release</id>
                <phase>none</phase>

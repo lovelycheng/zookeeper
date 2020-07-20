@@ -83,10 +83,11 @@ public class FileSnap implements SnapShot {
         for (int i = 0, snapListSize = snapList.size(); i < snapListSize; i++) {
             snap = snapList.get(i);
             LOG.info("Reading snapshot {}", snap);
-            snapZxid = Util.getZxidFromName(snap.getName(), SNAPSHOT_FILE_PREFIX);
+            snapZxid = Util.getZxidFromName(snap.getName(), SNAPSHOT_FILE_PREFIX);//文件名字中的zxid
             try (CheckedInputStream snapIS = SnapStream.getInputStream(snap)) {
                 InputArchive ia = BinaryInputArchive.getArchive(snapIS);
-                deserialize(dt, sessions, ia);
+                deserialize(dt, sessions, ia);//写入到dt中 , session中、
+                LOG.info("Sessions:{}",sessions.toString());
                 SnapStream.checkSealIntegrity(snapIS, ia);
 
                 // Digest feature was added after the CRC to make it backward
@@ -95,12 +96,12 @@ public class FileSnap implements SnapShot {
                 //
                 // To check the intact, after adding digest we added another
                 // CRC check.
-                if (dt.deserializeZxidDigest(ia, snapZxid)) {
+                if (dt.deserializeZxidDigest(ia, snapZxid)) { //向后兼容 -
                     SnapStream.checkSealIntegrity(snapIS, ia);
                 }
 
                 foundValid = true;
-                break;
+                break;//其实就是找第一个
             } catch (IOException e) {
                 LOG.warn("problem reading snap file {}", snap, e);
             }
@@ -159,7 +160,7 @@ public class FileSnap implements SnapShot {
      * less than n in case enough snapshots are not available).
      * @throws IOException
      */
-    protected List<File> findNValidSnapshots(int n) throws IOException {
+    protected List<File> findNValidSnapshots(int n) throws IOException { // 文件内容/结尾，文件名是zxid结尾
         List<File> files = Util.sortDataDir(snapDir.listFiles(), SNAPSHOT_FILE_PREFIX, false);
         int count = 0;
         List<File> list = new ArrayList<File>();

@@ -24,10 +24,8 @@ import java.io.File;
 import org.apache.zookeeper.PortAssignment;
 import org.apache.zookeeper.ZKTestCase;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.server.ServerCnxnFactory;
-import org.apache.zookeeper.server.SnapshotFormatter;
-import org.apache.zookeeper.server.SyncRequestProcessor;
-import org.apache.zookeeper.server.ZooKeeperServer;
+import org.apache.zookeeper.server.*;
+import org.apache.zookeeper.server.persistence.TxnLogToolkit;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +69,23 @@ public class InvalidSnapshotTest extends ZKTestCase {
         File snapfile = new File(new File(snapDir, "version-2"), "snapshot.273");
         String[] args = {snapfile.getCanonicalFile().toString()};
         SnapshotFormatter.main(args);
+    }
+
+    @Test
+    public void readFromFile() throws Exception {
+
+        File snapfile = new File("/Users/chengtong/zookeeper/test/server2/version-2/snapshot.200000005");
+
+        String[] args = {snapfile.getCanonicalFile().toString()};
+
+        SnapshotFormatter.main(args);
+
+        File logfile = new File("/Users/chengtong/zookeeper/test/server2/version-2/log.400000001");
+
+        String[] args1 = {"-v",logfile.getCanonicalFile().toString()};
+
+        TxnLogToolkit.main(args1);
+
     }
 
     /**

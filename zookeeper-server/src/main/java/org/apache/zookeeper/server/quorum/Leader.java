@@ -296,6 +296,11 @@ public class Leader extends LearnerMaster {
           .map(Optional::get)
           .forEach(serverSockets::add);
 
+        LOG.info("QuorumPeerSize:{}",serverSockets.size());
+        for (ServerSocket serverSocket:serverSockets){
+            LOG.info("serverSocket: "+serverSocket.toString());
+        }
+
         if (serverSockets.isEmpty()) {
             throw new IOException("Leader failed to initialize any of the following sockets: " + addresses);
         }
@@ -449,6 +454,7 @@ public class Leader extends LearnerMaster {
                 ExecutorService executor = Executors.newFixedThreadPool(serverSockets.size());
                 CountDownLatch latch = new CountDownLatch(serverSockets.size());
 
+                //new 的线程
                 serverSockets.forEach(serverSocket ->
                         executor.submit(new LearnerCnxAcceptorHandler(serverSocket, latch)));
 
@@ -585,7 +591,7 @@ public class Leader extends LearnerMaster {
         zk.registerJMX(new LeaderBean(this, zk), self.jmxLocalPeerBean);
 
         try {
-            self.setZabState(QuorumPeer.ZabState.DISCOVERY);
+            self.setZabState(QuorumPeer.ZabState.DISCOVERY); // discovery
             self.tick.set(0);
             zk.loadData();
 
@@ -594,9 +600,9 @@ public class Leader extends LearnerMaster {
             // Start thread that waits for connection requests from
             // new followers.
             cnxAcceptor = new LearnerCnxAcceptor();
-            cnxAcceptor.start();
+            cnxAcceptor.start(); //接收信息同步
 
-            long epoch = getEpochToPropose(self.getId(), self.getAcceptedEpoch());
+            long epoch = getEpochToPropose(self.getId(), self.getAcceptedEpoch());//wait
 
             zk.setZxid(ZxidUtils.makeZxid(epoch, 0));
 
@@ -659,8 +665,8 @@ public class Leader extends LearnerMaster {
                 waitForNewLeaderAck(self.getId(), zk.getZxid());
             } catch (InterruptedException e) {
                 shutdown("Waiting for a quorum of followers, only synced with sids: [ "
-                         + newLeaderProposal.ackSetsToString()
-                         + " ]");
+                        + newLeaderProposal.ackSetsToString()
+                        + " ]");
                 HashSet<Long> followerSet = new HashSet<Long>();
 
                 for (LearnerHandler f : getLearners()) {
@@ -1399,7 +1405,7 @@ public class Leader extends LearnerMaster {
             if (!waitingForNewEpoch) {
                 return epoch;
             }
-            if (lastAcceptedEpoch >= epoch) {
+            if (lastAcceptedEpoch >= epoch) { // leader的acceptedEpoch肯定是最大的,新的一轮开始
                 epoch = lastAcceptedEpoch + 1;
             }
             if (isParticipant(sid)) {
@@ -1407,6 +1413,7 @@ public class Leader extends LearnerMaster {
             }
             QuorumVerifier verifier = self.getQuorumVerifier();
             if (connectingFollowers.contains(self.getId()) && verifier.containsQuorum(connectingFollowers)) {
+
                 waitingForNewEpoch = false;
                 self.setAcceptedEpoch(epoch);
                 connectingFollowers.notifyAll();
@@ -1418,7 +1425,7 @@ public class Leader extends LearnerMaster {
                 long cur = start;
                 long end = start + self.getInitLimit() * self.getTickTime();
                 while (waitingForNewEpoch && cur < end && !quitWaitForEpoch) {
-                    connectingFollowers.wait(end - cur);
+                    connectingFollowers.wait(end - cur);//  //QuorumPeer 和 learnerHandler线程都等在这
                     cur = Time.currentElapsedTime();
                 }
                 if (waitingForNewEpoch) {

@@ -139,7 +139,6 @@ public class FileTxnSnapLog {
         if (!this.dataDir.canWrite()) {
             throw new DatadirException("Cannot write to data directory " + this.dataDir);
         }
-
         if (!this.snapDir.exists()) {
             // by default create this directory, but otherwise complain instead
             // See ZOOKEEPER-1161 for more details
@@ -242,16 +241,16 @@ public class FileTxnSnapLog {
      */
     public long restore(DataTree dt, Map<Long, Integer> sessions, PlayBackListener listener) throws IOException {
         long snapLoadingStartTime = Time.currentElapsedTime();
-        long deserializeResult = snapLog.deserialize(dt, sessions);
+        long deserializeResult = snapLog.deserialize(dt, sessions); //最新的zxid from snapshot file
         ServerMetrics.getMetrics().STARTUP_SNAP_LOAD_TIME.add(Time.currentElapsedTime() - snapLoadingStartTime);
         FileTxnLog txnLog = new FileTxnLog(dataDir);
         boolean trustEmptyDB;
         File initFile = new File(dataDir.getParent(), "initialize");
-        if (Files.deleteIfExists(initFile.toPath())) {
+        if (Files.deleteIfExists(initFile.toPath())) { // 清空 snapshot？
             LOG.info("Initialize file found, an empty database will not block voting participation");
             trustEmptyDB = true;
         } else {
-            trustEmptyDB = autoCreateDB;
+            trustEmptyDB = autoCreateDB; // true default
         }
 
         RestoreFinalizer finalizer = () -> {
@@ -465,7 +464,7 @@ public class FileTxnSnapLog {
         DataTree dataTree,
         ConcurrentHashMap<Long, Integer> sessionsWithTimeouts,
         boolean syncSnap) throws IOException {
-        long lastZxid = dataTree.lastProcessedZxid;
+        long lastZxid = dataTree.lastProcessedZxid; // 当前 dataTree里面最大的processedZxid
         File snapshotFile = new File(snapDir, Util.makeSnapshotName(lastZxid));
         LOG.info("Snapshotting: 0x{} to {}", Long.toHexString(lastZxid), snapshotFile);
         try {

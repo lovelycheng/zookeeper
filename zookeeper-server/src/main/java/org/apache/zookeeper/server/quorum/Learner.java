@@ -280,7 +280,7 @@ public class Learner {
         addresses.stream().map(address -> new LeaderConnector(address, socket, latch)).forEach(executor::submit);
 
         try {
-            latch.await();
+            latch.await(); //
         } catch (InterruptedException e) {
             LOG.warn("Interrupted while trying to connect to Leader", e);
         } finally {
@@ -436,7 +436,7 @@ public class Learner {
         long lastLoggedZxid = self.getLastLoggedZxid();
         QuorumPacket qp = new QuorumPacket();
         qp.setType(pktType);
-        qp.setZxid(ZxidUtils.makeZxid(self.getAcceptedEpoch(), 0));
+        qp.setZxid(ZxidUtils.makeZxid(self.getAcceptedEpoch(), 0));//这个zxid是拼起来的zxid
 
         /*
          * Add sid to payload
@@ -447,17 +447,19 @@ public class Learner {
         boa.writeRecord(li, "LearnerInfo");
         qp.setData(bsid.toByteArray());
 
-        writePacket(qp, true);
+        writePacket(qp, true);// payload 里面信息：{type: FOLLOWINFO ,zxid: ,sid,协议version, configVersion}
         readPacket(qp);
-        final long newEpoch = ZxidUtils.getEpochFromZxid(qp.getZxid());
-        if (qp.getType() == Leader.LEADERINFO) {
+        final long newEpoch = ZxidUtils.getEpochFromZxid(qp.getZxid());//获取了leader的zxid
+        if (qp.getType() == Leader.LEADERINFO) { //啥情况下不是LeaderInfo
+            LOG.info("收到 LEADERINFO");
             // we are connected to a 1.0 server so accept the new epoch and read the next packet
             leaderProtocolVersion = ByteBuffer.wrap(qp.getData()).getInt();
             byte[] epochBytes = new byte[4];
             final ByteBuffer wrappedEpochBytes = ByteBuffer.wrap(epochBytes);
             if (newEpoch > self.getAcceptedEpoch()) {
                 wrappedEpochBytes.putInt((int) self.getCurrentEpoch());
-                self.setAcceptedEpoch(newEpoch);
+
+                self.setAcceptedEpoch(newEpoch); //更改acceptedEpoch
             } else if (newEpoch == self.getAcceptedEpoch()) {
                 // since we have already acked an epoch equal to the leaders, we cannot ack
                 // again, but we still need to send our lastZxid to the leader so that we can
@@ -481,6 +483,9 @@ public class Learner {
                 LOG.error("First packet should have been NEWLEADER");
                 throw new IOException("First packet should have been NEWLEADER");
             }
+            LOG.info("收到NEWLEADER");
+
+
             return qp.getZxid();
         }
     }
@@ -503,11 +508,11 @@ public class Learner {
         // For SNAP and TRUNC the snapshot is needed to save that history
         boolean snapshotNeeded = true;
         boolean syncSnapshot = false;
-        readPacket(qp);
+        readPacket(qp);//read from leader
         Deque<Long> packetsCommitted = new ArrayDeque<>();
         Deque<PacketInFlight> packetsNotCommitted = new ArrayDeque<>();
         synchronized (zk) {
-            if (qp.getType() == Leader.DIFF) {
+            if (qp.getType() == Leader.DIFF) { // get from
                 LOG.info("Getting a diff from the leader 0x{}", Long.toHexString(qp.getZxid()));
                 self.setSyncMode(QuorumPeer.SyncMode.DIFF);
                 snapshotNeeded = false;
@@ -534,6 +539,7 @@ public class Learner {
                 // immediately persist the latest snapshot when there is txn log gap
                 syncSnapshot = true;
             } else if (qp.getType() == Leader.TRUNC) {
+                LOG.info("getting a TRUNC from leader");
                 //we need to truncate the log to the lastzxid of the leader
                 self.setSyncMode(QuorumPeer.SyncMode.TRUNC);
                 LOG.warn("Truncating log to get in sync with the leader 0x{}", Long.toHexString(qp.getZxid()));
@@ -568,6 +574,7 @@ public class Learner {
                 readPacket(qp);
                 switch (qp.getType()) {
                 case Leader.PROPOSAL:
+                    LOG.info("接收到Leader.PROPOSAL");
                     PacketInFlight pif = new PacketInFlight();
                     logEntry = SerializeUtils.deserializeTxn(qp.getData());
                     pif.hdr = logEntry.getHeader();
@@ -590,7 +597,9 @@ public class Learner {
                     packetsNotCommitted.add(pif);
                     break;
                 case Leader.COMMIT:
+                    LOG.info("接收到Leader.COMMIT");
                 case Leader.COMMITANDACTIVATE:
+                    LOG.info("接收到Leader.COMMITANDACTIVATE");
                     pif = packetsNotCommitted.peekFirst();
                     if (pif.hdr.getZxid() == qp.getZxid() && qp.getType() == Leader.COMMITANDACTIVATE) {
                         QuorumVerifier qv = self.configFromString(new String(((SetDataTxn) pif.rec).getData()));
@@ -613,11 +622,13 @@ public class Learner {
                             packetsNotCommitted.remove();
                         }
                     } else {
-                        packetsCommitted.add(qp.getZxid());
+                        packetsCommitted.add(qp.getZxid());// proposal 加入到这个双端队列
                     }
                     break;
                 case Leader.INFORM:
+                    LOG.info("接收到Leader.INFORM");
                 case Leader.INFORMANDACTIVATE:
+                    LOG.info("接收到Leader.INFORMANDACTIVATE");
                     PacketInFlight packet = new PacketInFlight();
 
                     if (qp.getType() == Leader.INFORMANDACTIVATE) {
@@ -658,6 +669,7 @@ public class Learner {
 
                     break;
                 case Leader.UPTODATE:
+                    LOG.info("接收到Leader.UPTODATE");
                     LOG.info("Learner received UPTODATE message");
                     if (newLeaderQV != null) {
                         boolean majorChange = self.processReconfig(newLeaderQV, null, null, true);
@@ -698,7 +710,9 @@ public class Learner {
             }
         }
         ack.setZxid(ZxidUtils.makeZxid(newEpoch, 0));
+        LOG.info("send ack to leader");
         writePacket(ack, true);
+
         sock.setSoTimeout(self.tickTime * self.syncLimit);
         self.setSyncMode(QuorumPeer.SyncMode.NONE);
         zk.startup();

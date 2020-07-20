@@ -50,7 +50,7 @@ public class WorkerService {
     private final ArrayList<ExecutorService> workers = new ArrayList<ExecutorService>();
 
     private final String threadNamePrefix;
-    private int numWorkerThreads;
+    private int numWorkerThreads; // 两倍的核心数
     private boolean threadsAreAssignable;
     private long shutdownTimeoutMS = 5000;
 

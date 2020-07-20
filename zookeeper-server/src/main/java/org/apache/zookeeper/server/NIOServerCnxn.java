@@ -325,6 +325,9 @@ public class NIOServerCnxn extends ServerCnxn {
                 if (rc < 0) {
                     handleFailedRead();
                 }
+
+
+
                 if (incomingBuffer.remaining() == 0) {
                     boolean isPayload;
                     if (incomingBuffer == lenBuffer) { // start of next request

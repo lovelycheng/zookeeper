@@ -76,7 +76,7 @@ public class ZKDatabase {
      */
     protected DataTree dataTree;
     protected ConcurrentHashMap<Long, Integer> sessionsWithTimeouts;
-    protected FileTxnSnapLog snapLog;
+    protected FileTxnSnapLog snapLog; // tnxlog & filesnap
     protected long minCommittedLog, maxCommittedLog;
 
     /**
@@ -107,9 +107,9 @@ public class ZKDatabase {
      */
     public ZKDatabase(FileTxnSnapLog snapLog) {
         dataTree = createDataTree();
-        sessionsWithTimeouts = new ConcurrentHashMap<Long, Integer>();
+        sessionsWithTimeouts = new ConcurrentHashMap<>();
         this.snapLog = snapLog;
-
+        //初始化 snapshotSizeFactor 参数 默认0.33
         try {
             snapshotSizeFactor = Double.parseDouble(
                     System.getProperty(SNAPSHOT_SIZE_FACTOR,
@@ -129,8 +129,9 @@ public class ZKDatabase {
             snapshotSizeFactor = DEFAULT_SNAPSHOT_SIZE_FACTOR;
         }
 
-        LOG.info("{} = {}", SNAPSHOT_SIZE_FACTOR, snapshotSizeFactor);
+        LOG.info("{} = {}", SNAPSHOT_SIZE_FACTOR, snapshotSizeFactor);//一个阈值
 
+        //初始化 commitLogCount 最小500
         try {
             commitLogCount = Integer.parseInt(
                     System.getProperty(COMMIT_LOG_COUNT,
@@ -224,7 +225,7 @@ public class ZKDatabase {
         final Collection<Proposal> result;
         ReadLock rl = logLock.readLock();
         // make a copy if this thread is not already holding a lock
-        if (logLock.getReadHoldCount() > 0) {
+        if (logLock.getReadHoldCount() > 0) { //避免多余的获取读锁
             result = this.committedLog;
         } else {
             rl.lock();
@@ -268,11 +269,11 @@ public class ZKDatabase {
         return sessionsWithTimeouts;
     }
 
-    private final PlayBackListener commitProposalPlaybackListener = new PlayBackListener() {
-        public void onTxnLoaded(TxnHeader hdr, Record txn, TxnDigest digest) {
-            addCommittedProposal(hdr, txn, digest);
-        }
-    };
+
+    /**
+     *
+     */
+    private final PlayBackListener commitProposalPlaybackListener = this::addCommittedProposal;
 
     /**
      * load the database from the disk onto memory and also add

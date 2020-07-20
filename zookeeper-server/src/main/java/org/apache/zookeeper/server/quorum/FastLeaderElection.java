@@ -990,7 +990,7 @@ public class FastLeaderElection implements Election {
                     if (manager.haveDelivered()) {
                         sendNotifications();
                     } else {
-                        manager.connectAll();
+                        manager.connectAll(); // 连接所有peer
                     }
 
                     /*

@@ -183,8 +183,10 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
         public AcceptThread(ServerSocketChannel ss, InetSocketAddress addr, Set<SelectorThread> selectorThreads) throws IOException {
             super("NIOServerCxnFactory.AcceptThread:" + addr);
             this.acceptSocket = ss;
-            this.acceptKey = acceptSocket.register(selector, SelectionKey.OP_ACCEPT);
-            this.selectorThreads = Collections.unmodifiableList(new ArrayList<SelectorThread>(selectorThreads));
+            this.acceptKey = acceptSocket.register(selector, SelectionKey.OP_ACCEPT);// 注册serverSocketChannel to
+            // selector
+            this.selectorThreads =
+                Collections.unmodifiableList(new ArrayList<SelectorThread>(selectorThreads));
             selectorIterator = this.selectorThreads.iterator();
         }
 
@@ -216,13 +218,12 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
 
         private void select() {
             try {
-                selector.select();
+                selector.select();// selector 是new的时候建立的，select阻塞, 并且将ready 的key加入到selectedKeys 中
 
-                Iterator<SelectionKey> selectedKeys = selector.selectedKeys().iterator();
+                Iterator<SelectionKey> selectedKeys = selector.selectedKeys().iterator();//acceptThread 注册accept
                 while (!stopped && selectedKeys.hasNext()) {
                     SelectionKey key = selectedKeys.next();
                     selectedKeys.remove();
-
                     if (!key.isValid()) {
                         continue;
                     }
@@ -267,7 +268,7 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
          *
          * @return whether was able to accept a connection or not
          */
-        private boolean doAccept() {
+        private boolean doAccept() { // 平均的分配socketChannel to selector
             boolean accepted = false;
             SocketChannel sc = null;
             try {
@@ -276,10 +277,10 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
                 if (limitTotalNumberOfCnxns()) {
                     throw new IOException("Too many connections max allowed is " + maxCnxns);
                 }
-                InetAddress ia = sc.socket().getInetAddress();
+                InetAddress ia = sc.socket().getInetAddress();// client's ip
                 int cnxncount = getClientCnxnCount(ia);
 
-                if (maxClientCnxns > 0 && cnxncount >= maxClientCnxns) {
+                if (maxClientCnxns > 0 && cnxncount >= maxClientCnxns) { // 这个是每个ip连接当前server的最大限制
                     throw new IOException("Too many connections from " + ia + " - max is " + maxClientCnxns);
                 }
 
@@ -351,7 +352,7 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
             if (stopped || !acceptedQueue.offer(accepted)) {
                 return false;
             }
-            wakeupSelector();
+            wakeupSelector(); // wake up selectorThread;
             return true;
         }
 
@@ -414,11 +415,11 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
 
         private void select() {
             try {
-                selector.select();
+                selector.select();// any channels registered? waked up by
 
                 Set<SelectionKey> selected = selector.selectedKeys();
                 ArrayList<SelectionKey> selectedList = new ArrayList<SelectionKey>(selected);
-                Collections.shuffle(selectedList);
+                Collections.shuffle(selectedList);//洗牌
                 Iterator<SelectionKey> selectedKeys = selectedList.iterator();
                 while (!stopped && selectedKeys.hasNext()) {
                     SelectionKey key = selectedKeys.next();
@@ -465,7 +466,7 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
             while (!stopped && (accepted = acceptedQueue.poll()) != null) {
                 SelectionKey key = null;
                 try {
-                    key = accepted.register(selector, SelectionKey.OP_READ);
+                    key = accepted.register(selector, SelectionKey.OP_READ);// 从acceptedQueue中获取的socketChannel 注册read
                     NIOServerCnxn cnxn = createConnection(accepted, key, this);
                     key.attach(cnxn);
                     addCnxn(cnxn);
@@ -650,7 +651,7 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
         // 32 cores sweet spot seems to be 4 selector threads
         numSelectorThreads = Integer.getInteger(
             ZOOKEEPER_NIO_NUM_SELECTOR_THREADS,
-            Math.max((int) Math.sqrt((float) numCores / 2), 1));
+            Math.max((int) Math.sqrt((float) numCores / 2), 1));//核心数/2 开根号
         if (numSelectorThreads < 1) {
             throw new IOException("numSelectorThreads must be at least 1");
         }

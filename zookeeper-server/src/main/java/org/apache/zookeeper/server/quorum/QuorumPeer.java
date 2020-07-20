@@ -297,7 +297,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             }
 
             for (String serverAddress : serverAddresses) {
-                String serverParts[] = ConfigUtils.getHostAndPort(serverAddress);
+                String serverParts[] = ConfigUtils.getHostAndPort(serverAddress);//[LOCALHOST,"PORT1","PORT2"]
                 if ((serverClientParts.length > 2) || (serverParts.length < 3)
                         || (serverParts.length > 4)) {
                     throw new ConfigException(addressStr + wrongFormat);
@@ -308,12 +308,13 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                 InetSocketAddress tempElectionAddress;
                 try {
                     tempAddress = new InetSocketAddress(serverParts[0], Integer.parseInt(serverParts[1]));
-                    addr.addAddress(tempAddress);
+                    addr.addAddress(tempAddress);//127.0.0.1 - 2888
                 } catch (NumberFormatException e) {
                     throw new ConfigException("Address unresolved: " + serverParts[0] + ":" + serverParts[1]);
                 }
                 try {
                     tempElectionAddress = new InetSocketAddress(serverParts[0], Integer.parseInt(serverParts[2]));
+                    //选举端口
                     electionAddr.addAddress(tempElectionAddress);
                 } catch (NumberFormatException e) {
                     throw new ConfigException("Address unresolved: " + serverParts[0] + ":" + serverParts[2]);

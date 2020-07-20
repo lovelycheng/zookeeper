@@ -108,7 +108,7 @@ public class ExpiryQueue<E> {
         // Map the elem to the new expiry time. If a different previous
         // mapping was present, clean up the previous expiry bucket.
         prevExpiryTime = elemMap.put(elem, newExpiryTime);
-        if (prevExpiryTime != null && !newExpiryTime.equals(prevExpiryTime)) {
+        if (prevExpiryTime != null && !newExpiryTime.equals(prevExpiryTime)) {// 没有过期，将这个连接从上一个过期队列中删除
             Set<E> prevSet = expiryMap.get(prevExpiryTime);
             if (prevSet != null) {
                 prevSet.remove(elem);

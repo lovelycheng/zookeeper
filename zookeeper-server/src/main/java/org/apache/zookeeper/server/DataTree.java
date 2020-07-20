@@ -102,7 +102,7 @@ public class DataTree {
      * This map provides a fast lookup to the datanodes. The tree is the
      * source of truth and is where all the locking occurs
      */
-    private final NodeHashMap nodes;
+    private final NodeHashMapImpl nodes; //<String,DataNode>
 
     private IWatchManager dataWatches;
 
@@ -152,6 +152,7 @@ public class DataTree {
      * This hashtable lists the paths of the ephemeral nodes of a session.
      */
     private final Map<Long, HashSet<String>> ephemerals = new ConcurrentHashMap<Long, HashSet<String>>();
+    // sessions - paths
 
     /**
      * This set contains the paths of all container nodes
@@ -292,10 +293,10 @@ public class DataTree {
 
         /** add the proc node and quota node */
         root.addChild(procChildZookeeper);
-        nodes.put(procZookeeper, procDataNode);
+        nodes.put(procZookeeper, procDataNode); // "/zookeeper" , Node
 
         procDataNode.addChild(quotaChildZookeeper);
-        nodes.put(quotaZookeeper, quotaDataNode);
+        nodes.put(quotaZookeeper, quotaDataNode); // Map<> "/zookeeper/quota",Node
 
         addConfigNode();
 
@@ -469,7 +470,7 @@ public class DataTree {
         String parentName = path.substring(0, lastSlash);
         String childName = path.substring(lastSlash + 1);
         StatPersisted stat = createStat(zxid, time, ephemeralOwner);
-        DataNode parent = nodes.get(parentName);
+        DataNode parent = nodes.get(parentName); // /root/to/parent/ - child
         if (parent == null) {
             throw new KeeperException.NoNodeException();
         }
@@ -1889,6 +1890,8 @@ public class DataTree {
 
     /**
      * A helper class to maintain the digest meta associated with specific zxid.
+     * digest 摘要
+     *
      */
     public class ZxidDigest {
 

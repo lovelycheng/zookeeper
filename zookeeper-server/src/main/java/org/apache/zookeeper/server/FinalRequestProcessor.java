@@ -106,6 +106,7 @@ public class FinalRequestProcessor implements RequestProcessor {
         this.requestPathMetricsCollector = zks.getRequestPathMetricsCollector();
     }
 
+    @Override
     public void processRequest(Request request) {
         LOG.debug("Processing request:: {}", request);
 
@@ -657,6 +658,7 @@ public class FinalRequestProcessor implements RequestProcessor {
         return request.cnxn == null;
     }
 
+    @Override
     public void shutdown() {
         // we are the final link in the chain
         LOG.info("shutdown of request processor complete");

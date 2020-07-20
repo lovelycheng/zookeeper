@@ -1720,12 +1720,12 @@ public class ZooKeeper implements AutoCloseable {
 
         final String serverPath = prependChroot(clientPath);
 
-        RequestHeader h = new RequestHeader();
-        h.setType(createMode.isContainer() ? ZooDefs.OpCode.createContainer : ZooDefs.OpCode.create);
+        RequestHeader h = new RequestHeader(); // 构建一个request
+        h.setType(createMode.isContainer() ? ZooDefs.OpCode.createContainer : ZooDefs.OpCode.create);// -c
         CreateRequest request = new CreateRequest();
         CreateResponse response = new CreateResponse();
         request.setData(data);
-        request.setFlags(createMode.toFlag());
+        request.setFlags(createMode.toFlag());// int 的枚举
         request.setPath(serverPath);
         request.setAcl(acl);
         ReplyHeader r = cnxn.submitRequest(h, request, response, null);

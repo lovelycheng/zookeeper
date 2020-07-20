@@ -70,7 +70,7 @@ public class Follower extends Learner {
     void followLeader() throws InterruptedException {
         self.end_fle = Time.currentElapsedTime();
         long electionTimeTaken = self.end_fle - self.start_fle;
-        self.setElectionTimeTaken(electionTimeTaken);
+        self.setElectionTimeTaken(electionTimeTaken); // time cost during election
         ServerMetrics.getMetrics().ELECTION_TIME.add(electionTimeTaken);
         LOG.info("FOLLOWING - LEADER ELECTION TOOK - {} {}", electionTimeTaken, QuorumPeer.FLE_TIME_UNIT);
         self.start_fle = 0;
@@ -81,10 +81,10 @@ public class Follower extends Learner {
         boolean completedSync = false;
 
         try {
-            self.setZabState(QuorumPeer.ZabState.DISCOVERY);
+            self.setZabState(QuorumPeer.ZabState.DISCOVERY);//改变本机状态
             QuorumServer leaderServer = findLeader();
             try {
-                connectToLeader(leaderServer.addr, leaderServer.hostname);
+                connectToLeader(leaderServer.addr, leaderServer.hostname);//使用的地址是addr
                 connectionTime = System.currentTimeMillis();
                 long newEpochZxid = registerWithLeader(Leader.FOLLOWERINFO);
                 if (self.isReconfigStateChange()) {
@@ -93,7 +93,7 @@ public class Follower extends Learner {
                 //check to see if the leader zxid is lower than ours
                 //this should never happen but is just a safety check
                 long newEpoch = ZxidUtils.getEpochFromZxid(newEpochZxid);
-                if (newEpoch < self.getAcceptedEpoch()) {
+                if (newEpoch < self.getAcceptedEpoch()) { // 如果leader的epoch比我们低，回去选举。
                     LOG.error("Proposed leader epoch "
                               + ZxidUtils.zxidToString(newEpochZxid)
                               + " is less than our accepted epoch "
@@ -103,7 +103,7 @@ public class Follower extends Learner {
                 long startTime = Time.currentElapsedTime();
                 try {
                     self.setLeaderAddressAndId(leaderServer.addr, leaderServer.getId());
-                    self.setZabState(QuorumPeer.ZabState.SYNCHRONIZATION);
+                    self.setZabState(QuorumPeer.ZabState.SYNCHRONIZATION);//
                     syncWithLeader(newEpochZxid);
                     self.setZabState(QuorumPeer.ZabState.BROADCAST);
                     completedSync = true;

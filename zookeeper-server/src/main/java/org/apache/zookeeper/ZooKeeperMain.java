@@ -249,6 +249,14 @@ public class ZooKeeperMain {
             }
             command = args.get(0);
             cmdArgs = args;
+
+            System.err.print("debug parsed commandline:");
+            for(String s:args){
+                System.err.print(s + " ");
+            }
+            System.err.println();
+
+
             return true;
         }
 
@@ -340,6 +348,7 @@ public class ZooKeeperMain {
                 String line;
                 Method readLine = consoleC.getMethod("readLine", String.class);
                 while ((line = (String) readLine.invoke(console, getPrompt())) != null) {
+                    System.err.println("debug: line -> " + line);
                     executeLine(line);
                 }
             } catch (ClassNotFoundException
@@ -390,8 +399,8 @@ public class ZooKeeperMain {
     }
 
     protected boolean processZKCmd(MyCommandOptions co) throws CliException, IOException, InterruptedException {
-        String[] args = co.getArgArray();
-        String cmd = co.getCommand();
+        String[] args = co.getArgArray(); //get -s /lock
+        String cmd = co.getCommand();//get
         if (args.length < 1) {
             usage();
             throw new MalformedCommandException("No command entered");
